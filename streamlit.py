@@ -6,9 +6,34 @@ import re
 import time
 import os
 from datetime import datetime
+from transformers import pipeline
+
+@st.cache_resource
+def stream_medllama2_response(prompt):
+    url = "http://localhost:11434/api/generate"
+    data = {
+        "model": "medllama2",
+        "prompt": prompt,
+        "stream": True
+    }
+    response_text = ""
+    with requests.post(url, json=data, stream=True) as resp:
+        for line in resp.iter_lines():
+            if line:
+                obj = json.loads(line)
+                chunk = obj.get('response', '')
+                response_text += chunk
+                yield chunk  # for real-time streaming in Streamlit
+    return response_text
+
+def build_medllama2_prompt(ailment, timeframe_data):
+    context = f"The following health data was recorded for the patient during the timeframe:\n{json.dumps(timeframe_data, indent=2)}"
+    question = f"Given that the patient has experienced {ailment} during this timeframe, what could be the possible explanations or recommendations?"
+    return f"Context: {context}\n\nQuestion: {question}\n\nAnswer:"
+
 
 # Load health data from JSON file
-HEALTH_DATA_PATH = "Add your P01Data.json file path here"
+HEALTH_DATA_PATH = "Add PData.json file path here"
 
 @st.cache_data
 def load_health_data(file_path):
@@ -139,18 +164,31 @@ def get_datetimes_in_range(start_datetime, end_datetime, data_dict):
     }
 
 if user_prompt:
-    with st.spinner("Extracting fields with Llama 3..."):
+    with st.spinner("Extracting fields..."):
         extracted_ailment, start_date, end_date, response_time = extract_fields_with_ollama(user_prompt)
         if extracted_ailment and start_date and end_date:
             st.write(f"**Extracted Health Ailment:** `{extracted_ailment}`")
             st.write(f"**Extracted Timeframe:** `{start_date}` to `{end_date}`")
             st.caption(f"Extraction time: {response_time:.2f} seconds")
 
+
             # Retrieve data for the date range
             health_data_range = get_datetimes_in_range(start_date, end_date, health_data_dict)
             if health_data_range:
                 st.success("Health data retrieved successfully for the selected timeframe!")
+
+                medllama2_prompt = build_medllama2_prompt(extracted_ailment, health_data_range)
+
+                st.subheader("Response")
+                with st.spinner("generating response..."):
+
+                    response_placeholder = st.empty()
+                    summary_so_far = ""
+                    for chunk in stream_medllama2_response(medllama2_prompt):
+                        summary_so_far += chunk
+                        response_placeholder.markdown(summary_so_far)
                 st.json(health_data_range)
+
             else:
                 st.error(f"No health data found for the timeframe: {start_date} to {end_date}")
 
