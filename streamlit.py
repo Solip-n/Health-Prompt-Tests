@@ -180,21 +180,6 @@ if user_prompt:
                st.json(health_data_range)
            else:
                st.error(f"No health data found for the timeframe: {start_date} to {end_date}")
-
-           #filter DataFrame for display
-           '''
-           filtered_df = prompts_df[
-               (prompts_df['health_ailment'].str.lower() == extracted_ailment.lower()) &
-               (prompts_df['date'].str[:13] >= start_date) &
-               (prompts_df['date'].str[:13] <= end_date)
-           ]
-
-           if not filtered_df.empty:
-               st.subheader("Matching Prompts in Dataset")
-               st.dataframe(filtered_df[['prompt', 'health_ailment', 'date']])
-           else:
-               st.warning("No matching prompts found in your CSV dataset")
-            '''
        else:
            st.error("Field extraction failed. Try a different query format.")
 else:
