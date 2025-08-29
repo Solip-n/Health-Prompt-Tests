@@ -11,7 +11,7 @@ from google import genai
 
 @st.cache_resource
 def stream_gemini_response(prompt, model="gemini-2.0-flash"):
-    client = genai.Client(api_key="AIzaSyCxTS79aoXru-1WJ2RAfdCUuv3PQgwWqCE") 
+    client = genai.Client(api_key=key) 
     response = client.models.generate_content(
         model=model,
         contents=prompt
